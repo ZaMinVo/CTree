@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cây thông noel</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<canvas id="treeCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('treeCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // =======================
+    // THÔNG TIN HÌNH NÓN - CÂY THÔNG
+    // =======================
+    const cone = {
+        baseRadius: (canvas.height * 0.75) / 2 * 0.85, // Giảm chiều rộng 15%
+        height: canvas.height * 0.75,                 // Chiều cao ~ 75% canvas
+        centerX: canvas.width / 2,
+        centerY: canvas.height,
+    };
+
+    // =======================
+    // CÁC MẢNG LƯU ĐỐI TƯỢNG
+    // =======================
+    const dots = [];
+    const snowflakes = [];
+    const lights = [];
+
+    // =======================
+    // SỐ LƯỢNG CÁC PHẦN TỬ
+    // =======================
+    const numDots = 12000;       // Số chấm trên cây
+    const numSnowflakes = 1200;  // Số bông tuyết
+    const numLights = 400;       // Số đèn nhấp nháy
+
+    // =======================
+    // HÀM TIỆN ÍCH
+    // =======================
+    function random(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
+    // =======================
+    // TẠO DỮ LIỆU BAN ĐẦU
+    // =======================
+    function createDots() {
+        for (let i = 0; i < numDots; i++) {
+            const height = random(0, cone.height);
+            const densityFactor = 1 - height / cone.height; // Chấm dày hơn ở dưới
+            const angle = random(0, 2 * Math.PI);
+            const radiusAtHeight = cone.baseRadius * (1 - height / cone.height);
+            const x = cone.centerX + radiusAtHeight * Math.cos(angle);
+            const y = cone.centerY - height;
+
+            dots.push({
+                angle: angle,
+                height: height,
+                speed: random(0.001, 0.005),
+                radius: random(3.5, 4.0),
+                densityFactor: densityFactor,
+
+                // Vị trí hiện tại
+                x: x,
+                y: y,
+
+                // Vận tốc để "quăng" ra
+                vx: 0,
+                vy: 0,
+            });
+        }
+    }
+
+    function createSnowflakes() {
+        for (let i = 0; i < numSnowflakes; i++) {
+            snowflakes.push({
+                x: random(0, canvas.width),
+                y: random(-canvas.height, 0),
+                radius: random(2, 5),
+                speed: random(1, 3),
+                color: `rgba(255, 255, 255, ${random(0.5, 1)})`,
+
+                // Vận tốc "quăng" ra
+                vx: 0,
+                vy: 0,
+            });
+        }
+    }
+
+    function createLights() {
+        for (let i = 0; i < numLights; i++) {
+            const height = (i / numLights) * cone.height;
+            const spacingFactor = 1 - height / cone.height;
+            const radiusAtHeight = cone.baseRadius * (1 - height / cone.height);
+            const angle = (i / (numLights * spacingFactor)) * 6 * Math.PI; // Hiệu ứng xoắn ốc
+            const sizeFactor = 1.2;
+            const x = cone.centerX + radiusAtHeight * Math.cos(angle);
+            const y = cone.centerY - height;
+
+            lights.push({
+                x: x,
+                y: y,
+                radius: sizeFactor * random(3, 5),
+                color: `hsla(${random(0, 360)}, 100%, 50%, 0.5)`,
+                active: true,
+
+                // Vận tốc "quăng" ra
+                vx: 0,
+                vy: 0,
+            });
+        }
+    }
+
+    // =======================
+    // VẼ CÂY THÔNG
+    // =======================
+    function drawCone() {
+        ctx.beginPath();
+        ctx.moveTo(cone.centerX, cone.centerY - cone.height);
+        ctx.lineTo(cone.centerX - cone.baseRadius, cone.centerY);
+        ctx.lineTo(cone.centerX + cone.baseRadius, cone.centerY);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(0, 128, 0, 0.2)'; // Độ trong suốt
+        ctx.fill();
+    }
+
+    // =======================
+    // VẼ CÁC CHẤM TRÊN CÂY
+    // =======================
+    function drawDots() {
+        dots.forEach(dot => {
+            // Để tạo hiệu ứng "thưa" ở trên
+            if (Math.random() > dot.densityFactor) return;
+
+            // Tính toán vị trí chấm
+            const radiusAtHeight = cone.baseRadius * (1 - dot.height / cone.height);
+            const x = cone.centerX + radiusAtHeight * Math.cos(dot.angle);
+            const y = cone.centerY - dot.height;
+
+            // Cập nhật vị trí hiện tại
+            dot.x = x;
+            dot.y = y;
+
+            // Vẽ chấm
+            ctx.beginPath();
+            ctx.arc(x, y, dot.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
+            ctx.fill();
+
+            // Quay nhẹ quanh trục
+            dot.angle += dot.speed;
+        });
+    }
+
+    // =======================
+    // VẼ TUYẾT RƠI
+    // =======================
+    function drawSnowflakes() {
+        snowflakes.forEach(snowflake => {
+            // Vẽ bông tuyết
+            ctx.beginPath();
+            ctx.arc(snowflake.x, snowflake.y, snowflake.radius, 0, Math.PI * 2);
+            ctx.fillStyle = snowflake.color;
+            ctx.fill();
+
+            // Cập nhật vị trí
+            snowflake.y += snowflake.speed * 1.1;
+            if (snowflake.y > canvas.height) {
+                snowflake.y = random(-canvas.height, 0);
+                snowflake.x = random(0, canvas.width);
+            }
+        });
+    }
+
+    // =======================
+    // VẼ ĐÈN NHẤP NHÁY
+    // =======================
+    function drawLights() {
+        lights.forEach((light, index) => {
+            ctx.beginPath();
+            ctx.arc(light.x, light.y, light.radius, 0, Math.PI * 2);
+            ctx.fillStyle = light.active ? light.color : 'rgba(0, 0, 0, 0.2)';
+            ctx.fill();
+
+            // Toggle đèn
+            if (index % 10 === 0) {
+                light.active = !light.active;
+            }
+        });
+    }
+
+    // =======================
+    // VẼ NGÔI SAO
+    // =======================
+    function drawStar() {
+        const starX = cone.centerX;
+        const starY = cone.centerY - cone.height;
+        const outerRadius = 60; // Kích thước của ngôi sao
+        const innerRadius = 30; // 1/2 outerRadius
+        const numPoints = 5;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.translate(starX, starY);
+        ctx.moveTo(0, -outerRadius);
+
+        for (let i = 0; i < numPoints * 2; i++) {
+            const angle = (Math.PI / numPoints) * i;
+            const r = i % 2 === 0 ? outerRadius : innerRadius;
+            const x = r * Math.sin(angle);
+            const y = -r * Math.cos(angle);
+            ctx.lineTo(x, y);
+        }
+
+        ctx.closePath();
+        ctx.fillStyle = 'yellow';
+        ctx.shadowColor = 'rgba(255, 255, 0, 0.8)';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // =======================
+    // BIẾN CỜ VÀ HÀM "BAY" SAU KHI CLICK
+    // =======================
+    let explosionTriggered = false; // Đánh dấu đã click vào chấm chưa
+
+    // Sau khi click, sinh vận tốc ngẫu nhiên cho tất cả chấm, tuyết, đèn
+    function createExplosion() {
+        // random độ mạnh (bạn có thể chỉnh to hơn nếu muốn bay "mạnh" hơn)
+        const maxSpeed = 10; 
+        // Mỗi phần tử có vx, vy ngẫu nhiên
+        dots.forEach(dot => {
+            // Chỉ những chấm hiện tại mới được "quăng"
+            const angle = random(0, 2 * Math.PI);
+            const speed = random(2, maxSpeed);
+            dot.vx = speed * Math.cos(angle);
+            dot.vy = speed * Math.sin(angle);
+        });
+        snowflakes.forEach(snowflake => {
+            const angle = random(0, 2 * Math.PI);
+            const speed = random(2, maxSpeed);
+            snowflake.vx = speed * Math.cos(angle);
+            snowflake.vy = speed * Math.sin(angle);
+        });
+        lights.forEach(light => {
+            const angle = random(0, 2 * Math.PI);
+            const speed = random(2, maxSpeed);
+            light.vx = speed * Math.cos(angle);
+            light.vy = speed * Math.sin(angle);
+        });
+    }
+
+    // Khi "explosionTriggered = true", ta update vị trí của chấm/tuyết/đèn theo vx, vy
+    function updateExplosion() {
+        // dots
+        dots.forEach(dot => {
+            // Vẽ chấm tại vị trí mới
+            ctx.beginPath();
+            ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
+            ctx.fill();
+
+            // Cập nhật vị trí
+            dot.x += dot.vx;
+            dot.y += dot.vy;
+        });
+
+        // snowflakes
+        snowflakes.forEach(snowflake => {
+            // Vẽ bông tuyết tại vị trí mới
+            ctx.beginPath();
+            ctx.arc(snowflake.x, snowflake.y, snowflake.radius, 0, Math.PI * 2);
+            ctx.fillStyle = snowflake.color;
+            ctx.fill();
+
+            // Cập nhật vị trí
+            snowflake.x += snowflake.vx;
+            snowflake.y += snowflake.vy;
+        });
+
+        // lights
+        lights.forEach(light => {
+            ctx.beginPath();
+            ctx.arc(light.x, light.y, light.radius, 0, Math.PI * 2);
+            ctx.fillStyle = light.color;
+            ctx.fill();
+
+            // Cập nhật vị trí
+            light.x += light.vx;
+            light.y += light.vy;
+        });
+    }
+
+    // =======================
+    // HÀM CHẠY VÒNG LẶP CHÍNH
+    // =======================
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!explosionTriggered) {
+            // ================
+            // Chưa click chấm
+            // ================
+            drawSnowflakes();
+            drawCone();
+            drawDots();
+            drawLights();
+            drawStar(); // Vẽ ngôi sao
+        } else {
+            // ================
+            // Đã click chấm
+            // ================
+            // Ta không vẽ cone và các chấm nữa, chỉ cập nhật và vẽ các đối tượng bay
+            updateExplosion();
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    // =======================
+    // XỬ LÝ CLICK VÀO CÁC CHẤM
+    // =======================
+    canvas.addEventListener('click', (e) => {
+        if (explosionTriggered) return; // Nếu đã nổ, không xử lý click nữa
+
+        // Lấy tọa độ click
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Phân vùng không gian (Spatial Partitioning) để tối ưu hóa việc kiểm tra
+        // Chia canvas thành các ô vuông nhỏ
+        const gridSize = 100; // Kích thước mỗi ô
+        const grid = {};
+
+        // Xây dựng grid
+        dots.forEach(dot => {
+            const gridX = Math.floor(dot.x / gridSize);
+            const gridY = Math.floor(dot.y / gridSize);
+            const key = `${gridX},${gridY}`;
+            if (!grid[key]) {
+                grid[key] = [];
+            }
+            grid[key].push(dot);
+        });
+
+        // Xác định ô mà click nằm trong
+        const clickedGridX = Math.floor(mouseX / gridSize);
+        const clickedGridY = Math.floor(mouseY / gridSize);
+
+        // Kiểm tra các ô lân cận (để bắt các chấm gần rìa ô)
+        const neighboringKeys = [];
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                neighboringKeys.push(`${clickedGridX + dx},${clickedGridY + dy}`);
+            }
+        }
+
+        // Kiểm tra click trúng chấm
+        let clicked = false;
+        for (let key of neighboringKeys) {
+            if (grid[key]) {
+                for (let dot of grid[key]) {
+                    const dx = mouseX - dot.x;
+                    const dy = mouseY - dot.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance <= dot.radius) {
+                        // Click trúng chấm
+                        explosionTriggered = true;
+                        createExplosion();
+                        clicked = true;
+                        break;
+                    }
+                }
+                if (clicked) break;
+            }
+        }
+    });
+
+    // =======================
+    // KHỞI TẠO DỮ LIỆU & BẮT ĐẦU
+    // =======================
+    createDots();
+    createSnowflakes();
+    createLights();
+    animate();
+
+    // =======================
+    // SỰ KIỆN THAY ĐỔI KÍCH THƯỚC CỬA SỔ
+    // =======================
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        cone.baseRadius = (canvas.height * 0.75) / 2 * 0.85;
+        cone.height = canvas.height * 0.75;
+        cone.centerX = canvas.width / 2;
+        cone.centerY = canvas.height;
+
+        // Cập nhật lại vị trí các chấm
+        dots.forEach(dot => {
+            const radiusAtHeight = cone.baseRadius * (1 - dot.height / cone.height);
+            dot.x = cone.centerX + radiusAtHeight * Math.cos(dot.angle);
+            dot.y = cone.centerY - dot.height;
+        });
+
+        // Tạo lại tuyết & đèn do tọa độ cũ không còn phù hợp
+        snowflakes.length = 0;
+        createSnowflakes();
+
+        lights.length = 0;
+        createLights();
+    });
+</script>
+</body>
+</html>
